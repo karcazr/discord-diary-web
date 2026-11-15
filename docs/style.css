@@ -1,0 +1,72 @@
+:root{color-scheme:light;--ink:#211d34;--violet:#6745ba;--violet-dark:#4e3298;--note:#716781;--line:#e9e2f1;--lavender:#f2eafc;--surface:#fffdf9;--serif:"Gowun Batang",Georgia,serif;--sans:"Noto Sans KR",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#f9f6fc;color:var(--ink);font-family:var(--sans);min-height:100vh;line-height:1.6}
+button,input,select,textarea{font:inherit}
+a{color:inherit}
+button,.button{border:0;border-radius:11px;background:var(--violet);color:white;font-weight:700;padding:.75rem 1.05rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:.55rem}
+button:hover,.button:hover{background:var(--violet-dark)}
+button:disabled{opacity:.55;cursor:default}
+:focus-visible{outline:3px solid #976ee0;outline-offset:3px}
+.top{min-height:74px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:0 max(calc((100vw - 1120px)/2),5vw);background:#fffdfd}
+.brand{display:flex;align-items:center;gap:.5rem;font-weight:800;font-size:1.06rem;text-decoration:none;white-space:nowrap}
+.brand-icon{display:grid;place-items:center;width:36px;height:36px;background:var(--violet);color:white;border-radius:11px;margin-right:.2rem}
+.brand span:last-child{color:var(--note);font-weight:500}
+main{max-width:1180px;margin:auto;padding:0 30px}
+.welcome{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:4rem;padding:80px 10px 72px}
+.label{font-size:.78rem;color:var(--violet-dark);font-weight:800;letter-spacing:.08em;margin:0 0 1rem}
+h1,h2,h3,p{margin-top:0}
+.pitch h1{font-family:var(--serif);font-weight:700;font-size:clamp(2.8rem,6vw,4.9rem);line-height:1.11;letter-spacing:-.065em;margin:0 0 1.5rem}
+.pitch h1 span{color:var(--violet)}
+.intro{color:var(--note);max-width:28rem;margin-bottom:1.8rem}
+.fineprint{color:var(--note);font-size:.77rem;margin:.95rem 0 0}
+.preview{isolation:isolate;border:1px solid #e3d4f7;border-radius:27px;background:radial-gradient(ellipse at 75% 16%,#f7edff,transparent 60%),#eadcfb;min-height:390px;display:grid;place-items:center;position:relative;overflow:hidden;padding:42px}
+.paper{border:1px solid #eadfec;border-radius:9px 15px 15px 9px;background:var(--surface);width:min(100%,320px);padding:25px 27px 22px 32px;transform:rotate(-7deg);box-shadow:15px 22px 45px #5a388a28,inset 6px 0 #bda2eb}
+.paper-top,.paper-foot{display:flex;align-items:center;justify-content:space-between;gap:.4rem;color:#71569b;font-weight:700;font-size:.68rem}
+.paper-title{font:700 clamp(1.55rem,4vw,2.4rem) var(--serif);margin:20px 0 10px}
+.paper-lines{height:108px;background:repeating-linear-gradient(transparent 0 25px,#e9dff0 26px 27px)}
+.paper-foot{margin-top:1rem;flex-wrap:wrap}
+.stamp{display:grid;place-items:center;position:absolute;right:7%;bottom:10%;transform:rotate(9deg);padding:.75rem;background:#fff7e9;border:1px solid #e2c590;border-radius:13px;color:#815312;box-shadow:0 8px 16px #5a388a21}
+.stamp span{font-size:1.4rem;line-height:1}
+.stamp small{font-size:.65rem;font-weight:700}
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.rules>div,.panel{background:#fffdfd;border:1px solid var(--line);border-radius:17px;padding:1.35rem}
+.rule-icon{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:11px;background:var(--lavender);color:var(--violet);font-size:1.2rem;margin-bottom:.65rem}
+.rules h2{font-size:1rem;margin-bottom:.4rem}
+.rules p,.subtle{color:var(--note);font-size:.88rem;margin:0}
+footer{text-align:center;color:var(--note);font-size:.76rem;padding:40px 1rem 22px}
+footer span{margin:0 .25rem}
+.app{padding-top:35px}
+.heading h1{font:700 clamp(2rem,5vw,3.2rem) var(--serif);margin:0}
+.heading{display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:1rem;margin-bottom:1.4rem}
+.account,.actions,.tabs{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
+.quiet,.tab{background:var(--lavender);color:var(--violet-dark);padding:.55rem .8rem}
+.quiet:hover,.tab:hover{background:#e7d9f6}
+.tabs{margin:1.2rem 0}
+.tab[aria-current=page]{background:var(--violet);color:white}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem}
+.metric{padding:1rem;background:#fffdfd;border:1px solid var(--line);border-radius:14px}
+.metric strong{display:block;font-size:1.45rem}
+.layout{display:grid;grid-template-columns:1.6fr 1fr;gap:1rem;align-items:start}
+.stack{display:grid;gap:.8rem}
+.panel h2,.panel h3{margin-bottom:.6rem}
+.panel h2{font-size:1.2rem}
+.panel h3{font-size:1rem}
+label{display:block;font-size:.87rem;font-weight:700;margin:.75rem 0 .3rem}
+input,textarea,select{width:100%;background:var(--surface);border:1px solid #ddd3eb;border-radius:9px;padding:.65rem;color:var(--ink)}
+textarea{min-height:220px;resize:vertical}
+.between{display:flex;justify-content:space-between;gap:.6rem;align-items:center;flex-wrap:wrap}
+.meta{font-size:.81rem;color:var(--note)}
+.post-body{white-space:pre-wrap;overflow-wrap:anywhere;margin:.7rem 0}
+.post-title{overflow-wrap:anywhere}
+.post[open] summary{border-bottom:1px solid var(--line);padding-bottom:.7rem}
+summary{cursor:pointer}
+.rows{padding:0;margin:.5rem 0;list-style:none}
+.rows li{border-top:1px solid var(--line);padding:.65rem 0}
+.badge{color:var(--violet-dark);background:var(--lavender);border-radius:30px;padding:.3rem .65rem;font-size:.75rem;font-weight:700}
+.notice{padding:.8rem .95rem;background:#fff3dc;color:#6b4719;border-radius:10px;font-size:.86rem}
+.notice[hidden], [hidden]{display:none}
+.member-form select{width:auto}
+#toast:empty{display:none}
+#toast{position:fixed;bottom:18px;right:18px;max-width:min(420px,calc(100vw - 36px));padding:.8rem 1rem;background:var(--ink);color:white;border-radius:12px;z-index:3;box-shadow:0 6px 30px #221c4144}
+@media(max-width:800px){.welcome{gap:1rem;padding:48px 0}.preview{min-height:300px;padding:25px}.layout{grid-template-columns:1fr}}
+@media(max-width:600px){main{padding:0 16px}.welcome,.rules{grid-template-columns:1fr}.welcome{gap:1.7rem;padding:38px 0 24px}.preview{min-height:265px}.top{min-height:64px}.metrics{grid-template-columns:repeat(2,1fr)}.top .account>span{display:none}.panel{padding:1rem}}

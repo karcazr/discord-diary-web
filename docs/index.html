@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="마딱도란 Discord 일기장의 웹 버전입니다.">
+  <title>마딱도란 · 일기장</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./config.js" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="./"><span class="brand-icon" aria-hidden="true">✦</span> 마딱도란 <span>일기장</span></a>
+    <div id="account"></div>
+  </header>
+  <main id="root" aria-busy="true">
+    <section class="welcome">
+      <div class="pitch">
+        <p class="label">마딱도란 커뮤니티</p>
+        <h1>하루를 적고,<br>기록을 이어가요<span>.</span></h1>
+        <p class="intro">오늘의 일기를 쓰고, 친구의 기록에 공감하세요. 꾸준히 적은 하루는 연속 기록과 보상으로 남아요.</p>
+        <div id="login"><p class="subtle">로그인 상태를 확인하는 중…</p></div>
+        <p class="fineprint">첫 Discord 로그인으로 가입돼요. 연결된 서버의 멤버만 이용할 수 있어요.</p>
+      </div>
+      <div class="preview" aria-hidden="true">
+        <div class="paper">
+          <div class="paper-top"><span>나의 일기장</span><span>✦</span></div>
+          <div class="paper-title">오늘의 기록</div>
+          <div class="paper-lines"></div>
+          <div class="paper-foot"><span>공백 제외 100자부터 출석</span><span>04:00 마감</span></div>
+        </div>
+        <div class="stamp"><span>✧</span><small>하루 한 편</small></div>
+      </div>
+    </section>
+    <section class="rules" aria-label="일기장 규칙">
+      <div><span class="rule-icon">✎</span><h2>오늘의 일기</h2><p>현지 오전 4시 정각까지 전날에 해당해요.</p></div>
+      <div><span class="rule-icon">↗</span><h2>연속 기록</h2><p>방패로 빠뜨린 하루를 지킬 수 있어요.</p></div>
+      <div><span class="rule-icon">◇</span><h2>골드와 티켓</h2><p>일기와 공감으로 보상을 모으고 마일스톤을 달성하세요.</p></div>
+    </section>
+  </main>
+  <footer>마딱도란 일기장 <span>·</span> 하루 한 편</footer>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
