@@ -74,15 +74,15 @@ function diaryPanel() {
   return `<div class="layout">
     <section class="panel">
       <div class="between"><h2>${previous ? date(post.day) + " 일기 수정" : "오늘의 일기"}</h2><span class="badge">${dashboard.profile.today ? "출석 완료" : "출석 전"}</span></div>
-      ${dashboard.enabled ? `<form id="diary-form">
+      <form id="diary-form">
         <label for="title">제목</label><input id="title" name="title" maxlength="100" required value="${escape(post?.title)}" placeholder="오늘을 한 줄로 적어보세요">
         <label for="body">본문</label><textarea id="body" name="body" maxlength="40000" required placeholder="오늘은 어떤 하루였나요?">
 ${escape(post?.body)}</textarea>
-        <p class="fineprint">유효한 일기는 같은 Discord 서버에서 로그인한 회원에게 보여요.</p>
+        <label class="checkbox"><input type="checkbox" name="shared" ${post?.shared ? "checked" : ""}> 출석 기준을 충족하면 다른 회원에게 공유</label>
         <div class="between"><p class="meta" id="count"></p><div class="actions">
           ${previous ? '<button class="quiet" type="button" data-action="today">오늘 일기 열기</button>' : ""}
           <button type="submit">${post ? "수정 저장" : "일기 저장"}</button></div></div>
-      </form>` : '<p class="notice">관리자가 내 일기장을 열면 일기를 쓸 수 있어요.</p>'}
+      </form>
     </section>
     <div class="stack">
       <section class="panel"><h2>최근 7일</h2><p class="subtle">일기 골드 + 공감 골드</p><ul class="rows">${recent}</ul></section>
@@ -95,10 +95,10 @@ function communityPanel() {
     const own = post.user === session.user.id;
     const buttons = reactionEmojis.map(emoji => `<button class="quiet" type="button" data-action="react" data-id="${post.id}" data-emoji="${emoji}" aria-label="${emoji} 공감">${emoji}</button>`).join("");
     return `<details class="panel post" data-post="${post.id}">
-      <summary><strong class="post-title">${escape(post.title)}</strong> <span class="meta">· ${escape(post.name)} · ${date(post.day)} · 공감 ${post.likes}</span></summary>
+      <summary><strong class="post-title">${escape(post.title)}</strong> <span class="meta">· ${escape(post.name)} · ${date(post.day)} · 공감 ${post.likes}${own && !(post.shared && post.eligible) ? " · 나만 보기" : ""}</span></summary>
       <p class="post-body">${escape(post.body)}</p>
       <div class="between"><span class="meta">${number(post.length)}자 · ${number(post.gold)} G ${post.eligible ? "" : "· 출석 미인정"}</span>
-        <div class="actions">${own && dashboard.enabled ? `<button type="button" class="quiet" data-action="edit" data-id="${post.id}">수정</button>` : !own && post.eligible ? (post.reacted ? `<span class="badge">${escape(post.reacted)} 공감 완료</span>` : buttons) : ""}</div></div>
+        <div class="actions">${own ? `<button type="button" class="quiet" data-action="edit" data-id="${post.id}">수정</button>` : post.reacted ? `<span class="badge">${escape(post.reacted)} 공감 완료</span>` : buttons}</div></div>
     </details>`;
   }).join("");
   const awards = dashboard.achievements.map(award => `<li><b>${escape(award.name)}</b>님이 ${escape(award.label)}을 달성했어요.
@@ -136,24 +136,24 @@ function profilePanel() {
     </ul></section><section class="panel"><h2>커뮤니티 순위</h2>${lists}</section></div>`;
 }
 
-function adminPanel() {
-  return `<section class="panel"><h2>일기장 관리</h2><p class="subtle">로그인한 회원의 일기장을 열고 집계 시간대를 설정하세요.</p>
-    <ul class="rows">${dashboard.members.map(member => `<li><form class="member-form between" data-member="${member.id}">
-      <strong>${escape(member.name)}</strong>
-      <div class="actions"><select name="zone" aria-label="${escape(member.name)} 시간대">
-        <option value="Asia/Seoul" ${member.zone === "Asia/Seoul" ? "selected" : ""}>한국</option>
-        <option value="America/Toronto" ${member.zone === "America/Toronto" ? "selected" : ""}>토론토</option>
-      </select><select name="enabled" aria-label="${escape(member.name)} 일기장 상태">
-        <option value="yes" ${member.active ? "selected" : ""}>열기</option>
-        <option value="no" ${!member.active ? "selected" : ""}>닫기</option>
-      </select><button type="submit">저장</button></div></form></li>`).join("")}</ul></section>`;
+function settingsPanel() {
+  const current = dashboard.pending?.zone ?? dashboard.zone;
+  return `<section class="panel"><h2>일기장 설정</h2><form id="settings-form">
+    <label for="zone">일기 집계 시간대</label>
+    <select id="zone" name="zone">
+      <option value="Asia/Seoul" ${current === "Asia/Seoul" ? "selected" : ""}>한국</option>
+      <option value="America/Toronto" ${current === "America/Toronto" ? "selected" : ""}>토론토</option>
+    </select>
+    <label class="checkbox"><input type="checkbox" name="community" ${dashboard.community ? "checked" : ""}> 내 이름과 기록을 순위 및 마일스톤에 공개</label>
+    <p class="subtle">공개를 선택하면 다른 회원이 내 연속 기록, 누적 일기 수, 골드 순위와 마일스톤을 볼 수 있어요.</p>
+    <p><button type="submit">설정 저장</button></p>
+    </form></section>`;
 }
 
 function render() {
   const state = dashboard.profile;
-  const tabs = { diary: "내 일기", community: "친구 일기", shop: "상점", profile: "프로필" };
-  if (session.user.admin) tabs.admin = "관리";
-  const panels = { diary: diaryPanel, community: communityPanel, shop: shopPanel, profile: profilePanel, admin: adminPanel };
+  const tabs = { diary: "내 일기", community: "공유 일기", shop: "상점", profile: "프로필", settings: "설정" };
+  const panels = { diary: diaryPanel, community: communityPanel, shop: shopPanel, profile: profilePanel, settings: settingsPanel };
   root.className = "app";
   root.innerHTML = `<div class="heading"><div><p class="label">나의 일기장</p><h1>${escape(session.user.name)}님의 기록</h1></div>
     <div class="meta">${date(dashboard.today)} · ${zone(dashboard.zone)} 오전 4시 마감</div></div>
@@ -186,7 +186,8 @@ async function load() {
 function hasUnsavedDiary() {
   const form = document.querySelector("#diary-form");
   const original = editing ?? dashboard.mine;
-  return form && (form.elements.title.value !== (original?.title ?? "") || form.elements.body.value !== (original?.body ?? ""));
+  return form && (form.elements.title.value !== (original?.title ?? "") ||
+    form.elements.body.value !== (original?.body ?? "") || form.elements.shared.checked !== Boolean(original?.shared));
 }
 
 async function submitting(button, action) {
@@ -235,21 +236,20 @@ root.addEventListener("click", event => {
 });
 root.addEventListener("submit", event => {
   const form = event.target;
-  if (form.id !== "diary-form" && !form.matches(".member-form")) return;
+  if (form.id !== "diary-form" && form.id !== "settings-form") return;
   event.preventDefault();
   const fields = new FormData(form);
   submitting(event.submitter ?? form.querySelector("button"), async () => {
     if (form.id === "diary-form") {
       const post = editing ?? dashboard.mine;
       const result = await api("diaries", { title: fields.get("title"), body: fields.get("body"),
-        id: post?.id, revision: post?.revision, expected_day: editing ? undefined : dashboard.today });
+        id: post?.id, revision: post?.revision, shared: fields.has("shared"), expected_day: editing ? undefined : dashboard.today });
       editing = null;
       notify(result.eligible
         ? `일기 저장 · ${result.delta >= 0 ? "+" : ""}${number(result.delta)} G · 연속 ${result.streak}일`
         : `일기 저장 · ${result.length}자 · 출석 미인정${result.delta < 0 ? ` · ${number(result.delta)} G` : ""}`);
     } else {
-      const result = await api("admin/book", { user: form.dataset.member, zone: fields.get("zone"),
-        enabled: fields.get("enabled") === "yes" });
+      const result = await api("settings", { zone: fields.get("zone"), community: fields.has("community") });
       notify(result.pending ? "시간대 전환을 예약했어요." : "일기장 설정을 저장했어요.");
     }
     await load();
@@ -268,7 +268,7 @@ async function start() {
   try {
     if (location.hostname.endsWith(".github.io")) {
       const configured = /^https:\/\/[^/?#]+$/.test(window.DIARY_SERVER_ORIGIN) ? window.DIARY_SERVER_ORIGIN : "";
-      showLogin(configured ? "" : "Discord 로그인 서버를 연결하는 중이에요.", configured && configured + "/auth/discord");
+      showLogin(configured ? "" : "Discord 로그인은 서비스 연결 후 사용할 수 있어요.", configured && configured + "/auth/discord");
       return;
     }
     session = await api("session");

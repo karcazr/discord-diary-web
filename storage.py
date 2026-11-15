@@ -450,8 +450,10 @@ class Store:
         current = self.forum_zone(channel,now)
         target = ZoneInfo(zone)
         effective = now
-        has_activity = self.db.execute('SELECT 1 FROM entries WHERE guild=? AND user=? UNION ALL SELECT 1 FROM purchases WHERE guild=? AND user=? LIMIT 1',
-                                       (forum['guild'],forum['owner'],forum['guild'],forum['owner'])).fetchone()
+        account = (forum['guild'], forum['owner'])
+        has_activity = self.db.execute('''SELECT 1 FROM entries WHERE guild=? AND user=?
+            UNION ALL SELECT 1 FROM purchases WHERE guild=? AND user=?
+            UNION ALL SELECT 1 FROM reactions WHERE guild=? AND user=? LIMIT 1''', account * 3).fetchone()
         # Switch only when both calendars agree, so a day cannot be counted twice/skipped.
         while has_activity and diary_day(effective, current) != diary_day(effective, target):
             effective += timedelta(minutes=1)
@@ -490,9 +492,10 @@ class Store:
             UNION ALL SELECT day, label, gold FROM milestones WHERE guild=? AND user=? AND gold>0
             ORDER BY day DESC LIMIT 15""", (guild,user,guild,user,guild,user,guild,user)).fetchall()
 
-    def ranking(self, guild, instant, metric):
+    def ranking(self, guild, instant, metric, *, members=None):
         if metric not in {"total", "streak", "gold"}:
             raise ValueError("Unknown ranking metric")
-        users = self.db.execute("SELECT user FROM users WHERE guild=?", (guild,)).fetchall()
-        rows = [(u[0], self.stats(guild,u[0],diary_day(instant,self.user_zone(guild,u[0],instant)))[metric]) for u in users]
+        if members is None:
+            members = (u[0] for u in self.db.execute("SELECT user FROM users WHERE guild=?", (guild,)).fetchall())
+        rows = [(user, self._stats(guild,user,diary_day(instant,self.user_zone(guild,user,instant)))[metric]) for user in members]
         return sorted(rows, key=lambda r: (-r[1], r[0]))[:10]

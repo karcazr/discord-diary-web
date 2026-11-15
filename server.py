@@ -1,4 +1,4 @@
-"""Same-origin Discord OAuth and diary API for one community."""
+"""Same-origin Discord sign-in and independent diary API."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -20,7 +20,7 @@ DISCORD_API = "https://discord.com/api/v10"
 EMOJIS = {"❤️", "👏", "🔥", "👍", "🎉", "💯"}
 ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
           "/style.css": ("style.css", "text/css"), "/config.js": ("config.js", "text/javascript")}
-GUILD = 1  # Separate web ledger, scoped by a single configured Discord community.
+GUILD = 1  # A local ledger namespace, with no corresponding Discord server.
 SESSION_TTL = timedelta(hours=12)
 
 
@@ -56,25 +56,15 @@ class DiaryWeb:
         self.secure = parsed.scheme == "https"
         self.client_id = config.get("DISCORD_CLIENT_ID")
         self.client_secret = config.get("DISCORD_CLIENT_SECRET")
-        self.discord_guild = config.get("DISCORD_GUILD_ID", "")
-        self.admins = {item.strip() for item in config.get("DIARY_ADMIN_IDS", "").split(",") if item.strip()}
-        for identifier in [self.client_id, self.discord_guild, *self.admins]:
-            if identifier and not re.fullmatch(r"[0-9]{17,20}", identifier):
-                raise ValueError("Discord settings must contain numeric IDs")
-        self.oauth_ready = bool(self.client_id and self.client_secret and self.discord_guild and self.admins)
+        if self.client_id and not re.fullmatch(r"[0-9]{17,20}", self.client_id):
+            raise ValueError("Discord client ID must be numeric")
+        self.oauth_ready = bool(self.client_id and self.client_secret)
         self.lock = RLock()
         db_path = config.get("DATABASE_PATH", str(HERE / "data" / "diary.sqlite3"))
         if db_path != ":memory:":
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         self.store = Store(db_path)
         self.db = self.store.db
-        if self.discord_guild:
-            with self.db:
-                self.db.execute("INSERT OR IGNORE INTO settings VALUES ('web_discord_guild',?)",
-                                (self.discord_guild,))
-                saved = self.db.execute("SELECT value FROM settings WHERE key='web_discord_guild'").fetchone()[0]
-                if saved != self.discord_guild:
-                    raise ValueError("Use a new DATABASE_PATH when changing the Discord community")
         self.db.executescript("""
             CREATE TABLE IF NOT EXISTS web_accounts (
                 user INTEGER PRIMARY KEY, name TEXT NOT NULL, avatar TEXT
@@ -94,6 +84,19 @@ class DiaryWeb:
                 PRIMARY KEY(user,thread)
             );
         """)
+        with self.db:
+            if "shared" not in {row[1] for row in self.db.execute("PRAGMA table_info(web_posts)")}:
+                self.db.execute("ALTER TABLE web_posts ADD COLUMN shared INTEGER NOT NULL DEFAULT 0")
+            if "community" not in {row[1] for row in self.db.execute("PRAGMA table_info(web_accounts)")}:
+                self.db.execute("ALTER TABLE web_accounts ADD COLUMN community INTEGER NOT NULL DEFAULT 0")
+
+    def create_book(self, user, now):
+        if self.store.forum(user):
+            return
+        self.db.execute("""INSERT INTO forums(guild,channel,since,owner) VALUES (?,?,?,?)
+            ON CONFLICT(channel) DO UPDATE SET enabled=1""", (GUILD, user, now.isoformat(), user))
+        self.db.execute("INSERT OR IGNORE INTO forum_timezone_changes VALUES (?,?,?)",
+                        (user, now.isoformat(), self.store.default_timezone))
 
     def cookie(self, name, value, age):
         secure = "; Secure" if self.secure else ""
@@ -124,7 +127,7 @@ class DiaryWeb:
                             (hashed(state), (now + timedelta(minutes=10)).isoformat()))
         query = urlencode(dict(client_id=self.client_id, response_type="code",
                                redirect_uri=f"{self.origin}/auth/callback",
-                               scope="identify guilds.members.read", state=state))
+                               scope="identify", state=state))
         return "302 Found", b"", [("Location", f"https://discord.com/oauth2/authorize?{query}"),
                                   self.cookie("diary_oauth", state, 600)]
 
@@ -146,10 +149,10 @@ class DiaryWeb:
                 code=code, redirect_uri=f"{self.origin}/auth/callback"))
             token = payload["access_token"]
             account = self.discord(f"{DISCORD_API}/users/@me", token=token)
-            self.discord(f"{DISCORD_API}/users/@me/guilds/{self.discord_guild}/member", token=token)
+            user = int(account["id"])
+            if not 0 < user < 2**63:
+                raise ValueError("Reserved account identifier")
         except (OSError, ValueError, KeyError) as exc:
-            if getattr(exc, "code", None) in {403, 404}:
-                raise Problem("403 Forbidden", "연결된 Discord 서버의 멤버만 가입할 수 있습니다.") from None
             raise Problem("502 Bad Gateway", "Discord 로그인에 실패했습니다. 다시 시도해 주세요.") from None
         session = secrets.token_urlsafe(32)
         old_session = self.cookies(env).get("diary_session")
@@ -157,11 +160,12 @@ class DiaryWeb:
             self.db.execute("DELETE FROM web_sessions WHERE expires<=?", (now.isoformat(),))
             if old_session:
                 self.db.execute("DELETE FROM web_sessions WHERE token=?", (hashed(old_session.value),))
-            self.db.execute("""INSERT INTO web_accounts VALUES (?,?,?) ON CONFLICT(user)
+            self.db.execute("""INSERT INTO web_accounts(user,name,avatar) VALUES (?,?,?) ON CONFLICT(user)
                 DO UPDATE SET name=excluded.name, avatar=excluded.avatar""",
-                            (int(account["id"]), account.get("global_name") or account["username"], account.get("avatar")))
+                            (user, account.get("global_name") or account["username"], account.get("avatar")))
+            self.create_book(user, now)
             self.db.execute("INSERT INTO web_sessions VALUES (?,?,?)",
-                            (hashed(session), int(account["id"]), (now + SESSION_TTL).isoformat()))
+                            (hashed(session), user, (now + SESSION_TTL).isoformat()))
         return "303 See Other", b"", [("Location", "/"), self.cookie("diary_oauth", "", 0),
                                       self.cookie("diary_session", session, int(SESSION_TTL.total_seconds()))]
 
@@ -177,7 +181,7 @@ class DiaryWeb:
                 (SELECT emoji FROM web_emojis WHERE thread=p.id AND user=?) AS reacted
             FROM web_posts p JOIN entries e ON e.thread=p.id JOIN web_accounts a USING(user)
             JOIN bodies b ON b.thread=p.id
-            WHERE e.user=? OR e.eligible=1 ORDER BY p.id DESC LIMIT 50
+            WHERE e.user=? OR (p.shared=1 AND e.eligible=1) ORDER BY p.id DESC LIMIT 50
         """, (user, user))]
         mine = self.db.execute("""SELECT p.*, e.day, e.gold, e.eligible, b.length
             FROM web_posts p JOIN entries e ON e.thread=p.id JOIN bodies b ON b.thread=p.id
@@ -188,29 +192,28 @@ class DiaryWeb:
                 WHERE e.user=? AND e.eligible=1 AND e.day<? ORDER BY e.day DESC LIMIT 1""",
                                      (user, missed)).fetchone()
             notices.append(dict(day=missed, title=target["title"] if target else None))
-        members = [dict(id=str(row["user"]), name=row["name"], active=bool(row["enabled"]),
-                        zone=str(self.store.user_zone(GUILD, row["user"], now)))
-                   for row in self.db.execute("""SELECT a.user,a.name,f.enabled FROM web_accounts a
-                       LEFT JOIN forums f ON a.user=f.owner ORDER BY a.name""")]
         achievements = [dict(row) for row in self.db.execute("""SELECT a.name,m.label,m.gold,m.shields,m.tickets,m.day
-            FROM milestones m JOIN web_accounts a ON a.user=m.user ORDER BY m.rowid DESC LIMIT 30""")]
+            FROM milestones m JOIN web_accounts a ON a.user=m.user
+            WHERE a.user=? OR a.community=1 ORDER BY m.rowid DESC LIMIT 30""", (user,))]
         for post in posts:
             post["user"] = str(post["user"])
         ranking = {}
-        names = {row["id"]: row["name"] for row in members}
+        names = dict(self.db.execute("SELECT user,name FROM web_accounts WHERE community=1"))
         for metric in ("streak", "gold", "total"):
-            ranking[metric] = [dict(name=names[str(uid)], value=value)
-                               for uid, value in self.store.ranking(GUILD, now, metric)]
+            ranking[metric] = [dict(name=names[uid], value=value)
+                               for uid, value in self.store.ranking(GUILD, now, metric, members=names)]
+        community = bool(self.db.execute("SELECT community FROM web_accounts WHERE user=?", (user,)).fetchone()[0])
         return dict(today=today.isoformat(), zone=str(zone), profile=profile, mine=dict(mine) if mine else None,
-                    enabled=bool(book and book["enabled"]), pending=dict(pending) if pending else None,
+                    community=community, pending=dict(pending) if pending else None,
                     week=self.store.week_history(GUILD, user, today), posts=posts, ranking=ranking,
                     achievements=achievements, notices=notices, ledger=[dict(r) for r in self.store.ledger(GUILD, user)],
-                    members=members if str(user) in self.admins else [], prices=SHOP_PRICES)
+                    prices=SHOP_PRICES)
 
     def save(self, user, now, data):
-        if not self.store.forum(user):
-            raise Problem("403 Forbidden", "관리자가 내 일기장을 열면 쓸 수 있습니다.")
         title, body = data.get("title"), data.get("body")
+        shared = data.get("shared", False)
+        if type(shared) is not bool:
+            raise ValueError("일기 공유 여부를 확인해 주세요.")
         if not isinstance(title, str) or not isinstance(body, str) or not 1 <= len(title.strip()) <= 100 or not 1 <= len(body.strip()) <= 20000:
             raise ValueError("제목은 1~100자, 본문은 1~20,000자로 입력해 주세요.")
         if any(0xD800 <= ord(char) <= 0xDFFF for char in title + body):
@@ -231,16 +234,16 @@ class DiaryWeb:
                 if not entry or entry["user"] != user:
                     raise Problem("404 Not Found", "수정할 일기를 찾을 수 없습니다.")
                 day = entry["day"]
-                cursor = self.db.execute("""UPDATE web_posts SET title=?,body=?,updated=?,revision=revision+1
+                cursor = self.db.execute("""UPDATE web_posts SET title=?,body=?,updated=?,shared=?,revision=revision+1
                     WHERE id=? AND revision=?""",
-                                         (title.strip(), body, now.isoformat(), post_id, data.get("revision")))
+                                         (title.strip(), body, now.isoformat(), shared, post_id, data.get("revision")))
                 if not cursor.rowcount:
                     raise Problem("409 Conflict", "다른 창에서 일기가 수정됐어요. 화면을 새로 열고 다시 시도해 주세요.")
             else:
                 if self.db.execute("SELECT 1 FROM entries WHERE guild=? AND user=? AND day=?", (GUILD, user, day)).fetchone():
                     raise Problem("409 Conflict", "오늘은 이미 일기를 썼어요. 기존 일기를 열어 수정해 주세요.")
-                post_id = self.db.execute("INSERT INTO web_posts(title,body,updated) VALUES (?,?,?)",
-                                          (title.strip(), body, now.isoformat())).lastrowid
+                post_id = self.db.execute("INSERT INTO web_posts(title,body,updated,shared) VALUES (?,?,?,?)",
+                                          (title.strip(), body, now.isoformat(), shared)).lastrowid
             _, delta, count = self.store.update_body(GUILD, user, post_id, day, body, in_transaction=True)
             self.store._award_milestones(GUILD, user, today.isoformat())
             streak = self.store._stats(GUILD, user, today)["streak"]
@@ -252,8 +255,7 @@ class DiaryWeb:
                 account = self.user(env, now)
             except Problem:
                 return dict(user=None, ready=self.oauth_ready)
-            return dict(user=dict(id=str(account["user"]), name=account["name"],
-                                  admin=str(account["user"]) in self.admins), ready=self.oauth_ready)
+            return dict(user=dict(id=str(account["user"]), name=account["name"]), ready=self.oauth_ready)
         account = self.user(env, now)
         user = account["user"]
         today = diary_day(now, self.store.user_zone(GUILD, user, now))
@@ -277,6 +279,8 @@ class DiaryWeb:
                 raise ValueError("일기와 이모지를 확인해 주세요.")
             with self.db:
                 self.db.execute("BEGIN IMMEDIATE")
+                if not self.db.execute("SELECT 1 FROM web_posts WHERE id=? AND shared=1", (post,)).fetchone():
+                    raise Problem("404 Not Found", "공유된 일기를 찾을 수 없습니다.")
                 reward = self.store.record_reaction(GUILD, user, post, today.isoformat(), in_transaction=True)
                 if not reward:
                     raise Problem("409 Conflict", "이미 반응했거나 반응할 수 없는 일기입니다.")
@@ -288,23 +292,14 @@ class DiaryWeb:
                 raise ValueError("상품과 구매 요청 번호를 확인해 주세요.")
             return self.store.buy(GUILD, user, today, quantity=data.get("quantity"), item=item,
                                   request_id=f"web:{user}:{key}")
-        if path == "/api/admin/book":
-            if str(user) not in self.admins:
-                raise Problem("403 Forbidden", "관리자만 일기장을 설정할 수 있습니다.")
-            target, zone, enabled = data.get("user"), data.get("zone"), data.get("enabled")
-            if not isinstance(target, str) or not re.fullmatch(r"[0-9]{17,19}", target) or int(target) >= 2**63:
-                raise ValueError("회원 계정을 선택해 주세요.")
-            target = int(target)
-            if zone not in ("Asia/Seoul", "America/Toronto") or type(enabled) is not bool:
-                raise ValueError("시간대와 일기장 상태를 선택해 주세요.")
-            if not self.db.execute("SELECT 1 FROM web_accounts WHERE user=?", (target,)).fetchone():
-                raise Problem("404 Not Found", "먼저 사용자가 Discord로 가입해야 합니다.")
-            if enabled:
-                self.store.register(GUILD, target, now.isoformat(), owner=target, admin=True)
-                effective = self.store.change_zone(target, zone, now)
-                return dict(effective=effective.isoformat(), pending=effective > now)
-            self.store.unregister(GUILD, target, admin=True)
-            return dict(pending=False)
+        if path == "/api/settings":
+            zone, community = data.get("zone"), data.get("community")
+            if zone not in ("Asia/Seoul", "America/Toronto") or type(community) is not bool:
+                raise ValueError("시간대와 공개 범위를 선택해 주세요.")
+            effective = self.store.change_zone(user, zone, now)
+            with self.db:
+                self.db.execute("UPDATE web_accounts SET community=? WHERE user=?", (community, user))
+            return dict(effective=effective.isoformat(), pending=effective > now)
         if path == "/api/logout":
             with self.db:
                 self.db.execute("DELETE FROM web_sessions WHERE token=?",

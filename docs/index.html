@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="마딱도란 Discord 일기장의 웹 버전입니다.">
-  <title>마딱도란 · 일기장</title>
+  <meta name="description" content="하루를 기록하고, 꾸준히 쓴 만큼 보상을 받는 웹 일기장입니다.">
+  <title>하루 일기</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="./style.css">
   <script src="./config.js" defer></script>
@@ -12,17 +12,16 @@
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="./"><span class="brand-icon" aria-hidden="true">✦</span> 마딱도란 <span>일기장</span></a>
+    <a class="brand" href="./"><span class="brand-icon" aria-hidden="true">✦</span> 하루 일기</a>
     <div id="account"></div>
   </header>
   <main id="root" aria-busy="true">
     <section class="welcome">
       <div class="pitch">
-        <p class="label">마딱도란 커뮤니티</p>
         <h1>하루를 적고,<br>기록을 이어가요<span>.</span></h1>
-        <p class="intro">오늘의 일기를 쓰고, 친구의 기록에 공감하세요. 꾸준히 적은 하루는 연속 기록과 보상으로 남아요.</p>
+        <p class="intro">오늘을 기록하고 연속 일기를 쌓아 보세요. 꾸준히 적은 하루에 일기장이 골드와 보상을 드려요.</p>
         <div id="login"><p class="subtle">로그인 상태를 확인하는 중…</p></div>
-        <p class="fineprint">첫 Discord 로그인으로 가입돼요. 연결된 서버의 멤버만 이용할 수 있어요.</p>
+        <p class="fineprint">첫 Discord 로그인으로 가입돼요. 일기는 기본적으로 나만 볼 수 있어요.</p>
       </div>
       <div class="preview" aria-hidden="true">
         <div class="paper">
@@ -40,7 +39,7 @@
       <div><span class="rule-icon">◇</span><h2>골드와 티켓</h2><p>일기와 공감으로 보상을 모으고 마일스톤을 달성하세요.</p></div>
     </section>
   </main>
-  <footer>마딱도란 일기장 <span>·</span> 하루 한 편</footer>
+  <footer>하루 일기</footer>
   <div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
