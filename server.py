@@ -255,7 +255,8 @@ class DiaryWeb:
                 account = self.user(env, now)
             except Problem:
                 return dict(user=None, ready=self.oauth_ready)
-            return dict(user=dict(id=str(account["user"]), name=account["name"]), ready=self.oauth_ready)
+            return dict(user=dict(id=str(account["user"]), name=account["name"], avatar=account["avatar"]),
+                        ready=self.oauth_ready)
         account = self.user(env, now)
         user = account["user"]
         today = diary_day(now, self.store.user_zone(GUILD, user, now))
@@ -339,7 +340,7 @@ class DiaryWeb:
         headers += [("Content-Type", f"{kind}; charset=utf-8"), ("Content-Length", str(len(body))),
                     ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
                     ("Referrer-Policy", "no-referrer"),
-                    ("Content-Security-Policy", "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")]
+                    ("Content-Security-Policy", "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://cdn.discordapp.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")]
         start_response(status, headers)
         return [body if method != "HEAD" else b""]
 
