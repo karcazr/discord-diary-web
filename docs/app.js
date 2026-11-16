@@ -143,9 +143,6 @@ function shopPanel() {
 
 function profilePanel() {
   const state = dashboard.profile;
-  const lists = Object.entries({ streak: "연속 기록", gold: "골드", total: "누적 일기" }).map(([key, title]) =>
-    `<h3>${title}</h3><ol class="rows">${dashboard.ranking[key].map((member, index) =>
-      `<li class="between"><span>${index + 1}. ${escape(member.name)}</span><b>${number(member.value)}</b></li>`).join("") || '<li class="subtle">공개 기록 없음</li>'}</ol>`).join("");
   return `<div class="layout profile-layout">
     <section class="panel" aria-label="내 프로필">
       <div class="profile-name">${avatar(session.user, true)}<div><strong>${escape(session.user.name)}</strong>
@@ -169,9 +166,15 @@ function profilePanel() {
         <li class="between"><span>공감 보상</span><b>${number(state.reaction_rate)} G${state.reaction_tickets ? " + 티켓 1장" : ""}</b></li>
         ${state.next_reaction ? `<li class="between"><span>다음 공감 목표</span><b>${number(state.next_reaction)}회</b></li>` : ""}
       </ul></section>
-      <details class="panel rankings"><summary>순위</summary>${lists}</details>
+      <details class="panel rankings"><summary>순위</summary><div class="ranking-list">${dashboard.ranking ? rankingList(dashboard.ranking) : ""}</div></details>
     </div>
   </div>`;
+}
+
+function rankingList(ranking) {
+  return Object.entries({ streak: "연속 기록", gold: "골드", total: "누적 일기" }).map(([key, title]) =>
+    `<h3>${title}</h3><ol class="rows">${ranking[key].map((member, index) =>
+      `<li class="between"><span>${index + 1}. ${escape(member.name)}</span><b>${number(member.value)}</b></li>`).join("") || '<li class="subtle">공개 기록 없음</li>'}</ol>`).join("");
 }
 
 function settingsPanel() {
@@ -259,6 +262,17 @@ async function submitting(button, action) {
 root.addEventListener("input", event => {
   if (event.target.id === "body") updateCount();
 });
+root.addEventListener("toggle", async event => {
+  const details = event.target;
+  if (!details.matches?.(".rankings") || !details.open || dashboard.ranking) return;
+  const list = details.querySelector(".ranking-list");
+  list.textContent = "불러오는 중";
+  try {
+    list.innerHTML = rankingList(await api("rankings"));
+  } catch {
+    list.textContent = "순위를 불러오지 못했어요.";
+  }
+}, true);
 root.addEventListener("click", event => {
   const logout = event.target.closest("#logout");
   if (logout) {

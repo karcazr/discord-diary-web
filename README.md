@@ -9,7 +9,27 @@
 - 완벽한 일기 주, 최초 연속 일기, 누적 글자 수, 누적 공감 마일스톤을 적용합니다. 보상과 축하 소식은 웹에 표시되며 티켓은 적립됩니다.
 - 일기는 기본적으로 비공개입니다. 공유를 선택한 유효 일기만 로그인한 다른 회원이 볼 수 있습니다. 순위와 마일스톤은 일기 공유와 별도로 공개를 선택할 수 있습니다.
 
-## 배포
+## Cloudflare 무료 플랜 배포
+
+Cloudflare 대시보드에서 Workers Free 계정과 `haru-diary` D1 데이터베이스를 만듭니다. 이 저장소를 받은 PC에서 아래 명령을 실행하세요. 첫 번째 명령의 값만 실제 Database ID로 바꿉니다.
+
+```powershell
+node cloudflare/configure.mjs <DATABASE_ID>
+npx wrangler login
+npx wrangler d1 migrations apply haru-diary --remote --config cloudflare/wrangler.jsonc
+npx wrangler deploy --config cloudflare/wrangler.jsonc
+```
+
+Worker에 처음 배포할 때 Wrangler가 `workers.dev` 서브도메인을 등록하라는 메시지를 표시하면 Cloudflare 화면에서 원하는 서브도메인을 등록하고 다시 배포합니다.
+
+1. Discord 앱의 **OAuth2 → Redirects**에 `https://haru-diary.<서브도메인>.workers.dev/auth/callback`을 추가합니다. 실제 배포 주소를 사용하세요.
+2. Cloudflare **Workers & Pages → haru-diary → Settings → Variables and Secrets**에서 `PUBLIC_ORIGIN`은 Worker 주소, `DISCORD_CLIENT_ID`는 Discord Client ID를 입력합니다. `DISCORD_CLIENT_SECRET`은 **Secret** 유형으로 저장합니다. Worker 주소에는 끝의 슬래시를 넣지 않습니다.
+3. Worker 주소의 `/healthz`에서 `ok`와 `discord_oauth`가 모두 `true`인지 확인합니다. GitHub Pages 진입 페이지를 쓰려면 `docs/config.js`의 `DIARY_SERVER_ORIGIN` 값에 Worker 주소를 쓰고 `main`에 커밋합니다.
+4. Discord 로그인 후 일기를 저장하고 프로필과 골드 내역을 확인합니다.
+
+이 배포의 기록은 D1에 저장됩니다. Docker 배포에서 생성한 SQLite 파일은 자동 복사되지 않습니다.
+
+## Docker 배포
 
 1. 이 저장소에서 HTTPS와 영구 디스크를 제공하는 서버로 컨테이너를 배포합니다. 컨테이너 포트는 `8000`, 영구 볼륨은 `/data`에 연결합니다. 호스트 디렉터리를 직접 연결하는 경우 컨테이너 사용자 UID 10001에 쓰기 권한을 주세요. 서버는 한 인스턴스로 실행합니다.
 2. Discord Developer Portal에서 웹용 Application을 만들고 OAuth2 Redirects에 `https://서버-주소/auth/callback`을 등록합니다. 웹은 `identify` 범위로 로그인합니다.

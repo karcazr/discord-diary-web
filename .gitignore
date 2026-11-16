@@ -8,3 +8,6 @@ data/
 *.backup
 *.initialized
 *.log
+cloudflare/wrangler.jsonc
+.wrangler/
+.dev.vars*
